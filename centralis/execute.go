@@ -42,18 +42,18 @@ func (dr *DependencyResolver) Plan(resources []resource.Resource) (*dag.DAG, err
 	return dag, nil
 }
 
-func (dr *DependencyResolver) Execute(ctx context.Context, plan *dag.DAG, async bool) error {
+func (dr *DependencyResolver) Execute(ctx context.Context, plan *dag.DAG, async bool, customFields map[string]interface{}) error {
 	if async {
-		return dr.executeAsync(ctx, plan)
+		return dr.executeAsync(ctx, plan, customFields)
 	}
-	return dr.executeSync(ctx, plan)
+	return dr.executeSync(ctx, plan, customFields)
 }
 
-func (dr *DependencyResolver) executeSync(ctx context.Context, plan *dag.DAG) error {
+func (dr *DependencyResolver) executeSync(ctx context.Context, plan *dag.DAG, customFields map[string]interface{}) error {
 	createdResources := make([]string, 0)
 
 	for _, node := range plan.ResolvedNodes {
-		_, err := dr.resourceManager.CreateResource(ctx, node.Resource.Type, node.Resource.Args)
+		_, err := dr.resourceManager.CreateResource(ctx, node.Resource.Type, node.Resource.Args, customFields)
 		if err != nil {
 			// Rollback created resources
 			for _, id := range createdResources {
@@ -68,7 +68,7 @@ func (dr *DependencyResolver) executeSync(ctx context.Context, plan *dag.DAG) er
 	return nil
 }
 
-func (dr *DependencyResolver) executeAsync(ctx context.Context, plan *dag.DAG) error {
+func (dr *DependencyResolver) executeAsync(ctx context.Context, plan *dag.DAG, customFields map[string]interface{}) error {
 	var wg sync.WaitGroup
 	errorChan := make(chan error, len(plan.ResolvedNodes))
 
@@ -76,7 +76,7 @@ func (dr *DependencyResolver) executeAsync(ctx context.Context, plan *dag.DAG) e
 		wg.Add(1)
 		go func(node *dag.DAGNode) {
 			defer wg.Done()
-			_, err := dr.resourceManager.CreateResource(ctx, node.Resource.Type, node.Resource.Args)
+			_, err := dr.resourceManager.CreateResource(ctx, node.Resource.Type, node.Resource.Args, customFields)
 			if err != nil {
 				errorChan <- err
 			}

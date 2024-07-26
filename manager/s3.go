@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
+	"io/ioutil"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/dblooman/centralis/resource"
 )
 
 // S3Storage implements the Storage interface using AWS S3
@@ -20,7 +22,7 @@ type S3Storage struct {
 }
 
 // NewS3Storage creates a new S3Storage instance
-func NewS3Storage(ctx context.Context, bucket string, region string) (*S3Storage, error) {
+func NewS3Storage(ctx context.Context, bucket, region string) (*S3Storage, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
 		return nil, err
@@ -35,8 +37,9 @@ func NewS3Storage(ctx context.Context, bucket string, region string) (*S3Storage
 }
 
 // Save saves the resource data to S3
-func (s *S3Storage) Save(ctx context.Context, resourceType, id string, data map[string]interface{}) error {
-	key := filepath.Join(resourceType, id+".json")
+func (s *S3Storage) Save(ctx context.Context, data resource.ResourceData) error {
+	key := filepath.Join(data.Type, data.ID+".json")
+	data.CreatedAt = time.Now()
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		return err
@@ -51,26 +54,26 @@ func (s *S3Storage) Save(ctx context.Context, resourceType, id string, data map[
 }
 
 // Load loads the resource data from S3
-func (s *S3Storage) Load(ctx context.Context, resourceType, id string) (map[string]interface{}, error) {
+func (s *S3Storage) Load(ctx context.Context, resourceType, id string) (resource.ResourceData, error) {
 	key := filepath.Join(resourceType, id+".json")
 	result, err := s.svc.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		return nil, err
+		return resource.ResourceData{}, err
 	}
 
 	defer result.Body.Close()
-	body, err := io.ReadAll(result.Body)
+	body, err := ioutil.ReadAll(result.Body)
 	if err != nil {
-		return nil, err
+		return resource.ResourceData{}, err
 	}
 
-	var data map[string]interface{}
+	var data resource.ResourceData
 	err = json.Unmarshal(body, &data)
 	if err != nil {
-		return nil, err
+		return resource.ResourceData{}, err
 	}
 
 	return data, nil

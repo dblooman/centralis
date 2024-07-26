@@ -52,7 +52,7 @@ func main() {
 		log.Fatalf("Failed to plan: %v", err)
 	}
 
-	err = dr.Execute(ctx, plan, false)
+	err = dr.Execute(ctx, plan, false, nil)
 	if err != nil {
 		log.Fatalf("Failed to execute: %v", err)
 	}

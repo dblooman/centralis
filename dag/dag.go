@@ -18,7 +18,8 @@ type DAG struct {
 
 func NewDAG() *DAG {
 	return &DAG{
-		Nodes: make(map[string]*DAGNode),
+		Nodes:         make(map[string]*DAGNode),
+		ResolvedNodes: make([]*DAGNode, 0),
 	}
 }
 
